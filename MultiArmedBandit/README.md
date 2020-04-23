@@ -1,4 +1,4 @@
-#Multi-Armed Bandit
+# Multi-Armed Bandit
 ## Description
 This repository contains an implementation of the Multi-Armed Bandit algorithms Thompson Sampling, Upper Confidence Bound, Upper Confidence Bound 1, and ε-Greedy. This repository contains C source files in the `C/` directory that can be used for reconfigurable testing of these four algorithms. The `bandit.c` source file shows how the algorithms can be simulated.
 
