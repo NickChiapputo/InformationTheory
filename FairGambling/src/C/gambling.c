@@ -36,14 +36,21 @@
 
 
 // Set betting style
-#define BET_STYLE 				0
+#define BET_STYLE 				CONSTANT
 
 
 // Define location to save result data
 #define SAVE_DATA_LOC			"data/results.dat"
 
+
+// Option to save the data. 1 = save, 0 = don't save
+#define SAVE_DATA 				1
+
 int main()
 {
+	if( SAVE_DATA )
+		printf( "Saving data to '%s'\n\n", SAVE_DATA_LOC );
+
 	// Display game parameters
 	printf( "Game Parameters:\n"
 			"    Alice Starting:        $%i\n"
@@ -84,7 +91,16 @@ int main()
 	int bobWin = 0;
 
 	// Track average money remaining
-	FILE * fp = fopen( SAVE_DATA_LOC, "w" );
+	FILE * fp;
+	if( SAVE_DATA )
+	{
+		fp = fopen( SAVE_DATA_LOC, "w" );
+		if( fp == NULL)
+		{
+			printf( "ERROR: Unable to open file '%s'.\nPlease make sure the directory exists and try again.\n", SAVE_DATA_LOC );
+			exit( 0 );
+		}
+	}
 
 	int i;
 	for( i = 0; i < NUM_GAMES; i++ )
@@ -198,10 +214,12 @@ int main()
 		}
 
 		// Save current round information:  Game Number 	Number of Rounds		Alice Win Count		Bob Win Count
-		fprintf( fp, "%i %i %i %i\n", 		( i + 1 ), 		round, 					aliceWin, 			bobWin );
+		if( SAVE_DATA )
+			fprintf( fp, "%i %i %i %i\n", 		( i + 1 ), 		round, 					aliceWin, 			bobWin );
 	}
 
-	fclose( fp );
+	if( SAVE_DATA )
+		fclose( fp );
 
 	// Calculate average number of rounds by dividing sum by the number of games
 	averageRounds /= NUM_GAMES;
