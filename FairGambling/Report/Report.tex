@@ -2,7 +2,9 @@
 
 \documentclass[12pt]{article}
 
+\usepackage{cite}
 \usepackage{float}
+\usepackage{bookmark}
 \usepackage[top=1in,bottom=1in,left=1in,right=1in]{geometry}
 
 \title{Gambling Report}
@@ -12,10 +14,20 @@
 % 	Hua Sun
 % }
 
+\hypersetup{
+	colorlinks = true,
+	linkcolor = blue,
+	filecolor = magenta,
+	urlcolor = cyan,
+	citecolor = blue,
+	pdftitle = {Gambling Report},
+	pdfpagemode = UseOutlines,
+}
+
 \begin{document}
 	\maketitle
 	\section{Simulation Parameters}
-		The starting value for Alice is always \$5 and for Bob is either \$5, \$15, or \$50. 1,000,000 games are simulated for each scenario until one party has \$0 left. The starting bet amount is \$1 and each round there is a 50\% chance either party wins the pool. The following strategies used are defined below. The simulation source is found at \cite{gamblingGit}
+		The starting value for Alice is always \$5 and for Bob is either \$5, \$15, or \$50. 1,000,000 games are simulated for each scenario until one party has \$0 left. The starting bet amount is \$1 and each round there is a 50\% chance either party wins the pool. The following strategies used are defined below. The simulation source is found at \cite{gamblingGit}. Section 2 contains the results of running the simulation with each of the six strategies and three different starting value pairs.
 
 		\begin{description}
 			\item[Constant]				A constant bet of \$1 is placed at each round.
@@ -85,6 +97,6 @@
 		\end{table}
 
 	\begin{thebibliography}{00}
-		\bibitem{githubSource} [Online].Available: \url{https://github.com/NickChiapputo/MultiArmedBandit}
+		\bibitem{gamblingGit} [Online].Available: \url{https://github.com/NickChiapputo/InformationTheory/tree/master/FairGambling}
 	\end{thebibliography}
 \end{document}
