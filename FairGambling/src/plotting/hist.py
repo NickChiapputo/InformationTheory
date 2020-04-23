@@ -51,12 +51,6 @@ HIST_LINE_WIDTH = 0.5
 FILE = "data/results.dat"
 
 
-# Data output parameters
-OUT_FILE_TYPE = ".pdf"
-OUT_FILE_BETTING_NAME = "constant"
-OUT_FILE = "data/" + "a-" + str( A ) + "_b-" + str( B ) + "_" + OUT_FILE_BETTING_NAME + OUT_FILE_TYPE
-
-
 # Data storage for number of rounds each game takes
 rounds = np.zeros( GAMES )
 
@@ -87,9 +81,6 @@ BIN_WIDTH = int( ( 1. / ( GAMES ** ( 1. / 3. ) ) ) * np.std( rounds ) * 3.49 ) +
 if( BIN_WIDTH <= 1 ):
 	BIN_WIDTH = 2;
 BINS = np.arange( 0, HIST_RANGE + 1, BIN_WIDTH )
-
-print( "Round Std: %f" % ( np.std( rounds ) ) )
-print( "Bin Width: %f\n" % ( BIN_WIDTH ) )
 
 # Create figure with one plot
 fig, ax = plt.subplots( nrows = 1, ncols = 1, constrained_layout = True )
@@ -124,8 +115,4 @@ figManager = plt.get_current_fig_manager()
 figManager.window.showMaximized()
 
 # Display figure
-# plt.show()
-
-# Save figure
-print( "Saving to: %s" % ( OUT_FILE ) )
-plt.savefig( OUT_FILE )
+plt.show()
