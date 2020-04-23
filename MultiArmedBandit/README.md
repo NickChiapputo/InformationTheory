@@ -8,7 +8,7 @@ Our report contains the results of evaluating the effect of changing the simulat
 The program requires the use of the GNU Science Library (GSL). This can be installed with instructions at [GNU.org](https://www.gnu.org/software/gsl/).
 
 ## Usage
-The header and source file `algorithms.h` and `algorithms.c` can be used as library files for any program. These files are made to allow users to more easily simulate Multi-Armed Bandit simulations using the four implemented algorithms. An example creation of an algorithm is given here:
+The header and source file `algorithms.h` and `algorithms.c` can be used as library files for any program. These files are made to allow users to more easily simulate Multi-Armed Bandit simulations using the four implemented algorithms. The source `bandit.c` shows how these files can be used in a full program. Example usage can be taken from that source. An example creation of an algorithm object is given below.
 
     Algorithm * ts = newAlgorithm( TH_ALGTYPE, 1000000, 500, 2, BERNOULLI_DIST, 1, 0, r, 0 );
 
