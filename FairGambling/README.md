@@ -8,9 +8,9 @@ The various options for the simulation can be changed directly through the globa
 
 | Parameter Name        | Meaning                                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------ |
-| ALICE_STARTING        | The amount of money Alice starts out with at each game                                                 |
-| BOB_STARTING          | The amount of money Bob starts out with at each game                                                   |
-| ALICE_WIN_PROBABILITY | Alice's win chance in each round. This value should be between 0 and 1. A fair game has a value of 0.5 |
+| ALICE_STARTING        | The amount of money Alice starts out with at each game.                                                |
+| BOB_STARTING          | The amount of money Bob starts out with at each game.                                                  |
+| ALICE_WIN_PROBABILITY | Alice's win chance in each round. This value should be between 0 and 1. A fair game has a value of 0.5.|
 | BET_AMOUNT            | The starting bet amount for each game.                                                                 |
 | NUM_GAMES             | The number of games to simulate.                                                                       |
 | BET_STYLE             | The betting strategy to be used. There are six defined betting strategies explained in the source.     |
@@ -32,3 +32,9 @@ The following make command can be used to run the executable with or without com
 ### Cleaning
 Object files and executables can be automatically cleaned up using the following make command:
 `make clean`
+
+### Plotting
+A Python plotting utility is provided in `src/plotting/hist.py`. The purpose of this file is to display a histogram showing how often games end after a number of rounds. The options can be changed in the source, but the default is to read from the file `data/results.dat` as written in the simulation source file. The x-axis limit can be changed by changing the `HIST_RANGE` variable and the title display can be changed by updating the `BETTING_STRATEGY` and `HIST_TITLE` attributes. 
+
+The script was created using Python 3.6.8 and is not guaranteed to work on other versions. To execute the script, use the following command:
+`python3 src/plotting/hist.py`
