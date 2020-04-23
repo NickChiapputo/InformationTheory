@@ -9,21 +9,13 @@ The various options for the simulation can be changed directly through the globa
 | Parameter Name        | Meaning                                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------ |
 | ALICE_STARTING        | The amount of money Alice starts out with at each game                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | BOB_STARTING          | The amount of money Bob starts out with at each game                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | ALICE_WIN_PROBABILITY | Alice's win chance in each round. This value should be between 0 and 1. A fair game has a value of 0.5 |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | BET_AMOUNT            | The starting bet amount for each game.                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | NUM_GAMES             | The number of games to simulate.                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | BET_STYLE             | The betting strategy to be used. There are six defined betting strategies explained in the source.     |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | SAVE_DATA_LOC         | The file to which each game result is saved. This is used for plotting.                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 | SAVE_DATA             | An option to turn on or off data saving. If this value is 1, then each game's results will be saved.   |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
 
 ### Compilation
 The basic command to compile the C source is:
