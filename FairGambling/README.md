@@ -1,6 +1,9 @@
 # Fair Gambling
-## Overview
+## Description
 The purpose of this project is to show that, in a fair betting game, each player's chance of winning will converge to a consistent value. The source for simulating the betting games is located in the C source file `src/C/gambling.c`. A Python plotting utility is included at `src/plotting/hist.py` to view the results of a simulation.
+
+## Installation
+The program requires the use of the GNU Science Library (GSL). This can be installed with instructions at [GNU.org](https://www.gnu.org/software/gsl/).
 
 ## How to Use
 ### Simulation Options
