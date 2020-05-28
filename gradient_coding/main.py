@@ -15,29 +15,31 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-if len(sys.argv) != 11:
+if len(sys.argv) != 13:
     print("Usage: python main.py n_procs n_rows n_cols input_dir is_real dataset is_coded n_stragglers partial_straggler_partitions coded_ver num_itrs")
     sys.exit(0)
 
-n_procs, n_rows, n_cols, input_dir, is_real, dataset, is_coded, n_stragglers , partitions, coded_ver  = [x for x in sys.argv[1:]]
+n_procs, n_rows, n_cols, input_dir, is_real, dataset, is_coded, n_stragglers, straggler_delay, n_iterations, partitions, coded_ver  = [x for x in sys.argv[1:]]
 n_procs, n_rows, n_cols, is_real, is_coded, n_stragglers , partitions, coded_ver = int(n_procs), int(n_rows), int(n_cols), int(is_real), int(is_coded), int(n_stragglers), int(partitions), int(coded_ver)
 input_dir = input_dir+"/" if not input_dir[-1] == "/" else input_dir
 
 
-# ---- Modifiable parameters
-num_itrs = 100 # Number of iterations
+# Convert parameters to numbers where necessary
+n_iterations = int( n_iterations )
+straggler_delay = float( straggler_delay )
 
+# ---- Modifiable parameters
 alpha = 1.0/n_rows #sometimes we used 0.0001 # --- coefficient of l2 regularization
 
-learning_rate_schedule = 10.0*np.ones(num_itrs)
+learning_rate_schedule = 10.0*np.ones(n_iterations)
 # eta0=10.0
 # t0 = 90.0
-# learning_rate_schedule = [eta0*t0/(i + t0) for i in range(1,num_itrs+1)]
+# learning_rate_schedule = [eta0*t0/(i + t0) for i in range(1,n_iterations+1)]
 
 # -------------------------------------------------------------------------------------------------------------------------------
 
 params = []
-params.append(num_itrs)
+params.append(n_iterations)
 params.append(alpha)
 params.append(learning_rate_schedule)
 
@@ -66,7 +68,7 @@ if is_coded:
         elif(coded_ver ==2):
             avoidstragg_logistic_regression(n_procs, n_rows, n_cols, input_dir + dataset +"/" + str(n_procs-1) + "/", n_stragglers, is_real, params)
 else:
-    naive_logistic_regression(n_procs, n_rows, n_cols, input_dir + dataset +"/" + str(n_procs-1) + "/", is_real, params)
+    naive_logistic_regression(n_procs, n_rows, n_cols, input_dir + dataset +"/" + str(n_procs-1) + "/", n_stragglers, straggler_delay, is_real, params)
 
 comm.Barrier()
 MPI.Finalize()
