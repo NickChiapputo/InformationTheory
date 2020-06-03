@@ -34,7 +34,14 @@ generate_random_data:
 arrange_real_data:
 	python ./src/arrange_real_data.py $(N_PROCS) $(DATA_FOLDER) $(DATASET) $(N_STRAGGLERS) $(N_PARTITIONS) $(PARTIAL_CODED)
 
-naive:   
+naive:  
+	@echo \
+	"Naive Regression:\n" 							\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 0 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS)  0 0
 
 cyccoded:
