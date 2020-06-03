@@ -1,29 +1,29 @@
 # No. of workers. Add one for the master
-N_PROCS=13
+N_PROCS ?= 13
 
 # No. of stragglers in our coding schemes
-N_STRAGGLERS = 1
+N_STRAGGLERS ?= 1
 
 # No. of iterations
-N_ITERATIONS = 1
+N_ITERATIONS ?= 1
 
 # Straggler Delay (seconds)
-STRAGGLER_DELAY = 0
+STRAGGLER_DELAY ?= 0
 
 # For partially coded version: how many pieces of workload will one worker be handling.
-N_PARTITIONS=10
+N_PARTITIONS ?= 10
 
 # Switch to enable partial coded schemes
-PARTIAL_CODED=0
+PARTIAL_CODED ?= 0
 
 # Path to folder containing the data folders
-DATA_FOLDER=straggdata/
+DATA_FOLDER ?= straggdata/
 
-IS_REAL = 0
+IS_REAL ?= 0
 
-DATASET = amazon-dataset
-N_ROWS=554400
-N_COLS=100
+DATASET ?= amazon-dataset
+N_ROWS ?= 554400
+N_COLS ?= 100
 
 # Note that DATASET is automatically set to artificial-data/ (n_rows)x(n_cols)/... if IS_REAL is set to 0 \
 # or artificial-data/partial/ (n_rows)x(n_cols)/... if PARTIAL_CODED is also set to 1
