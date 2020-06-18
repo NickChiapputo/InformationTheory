@@ -36,7 +36,7 @@ arrange_real_data:
 
 naive:  
 	@echo \
-	"Naive Regression:\n" 							\
+	"Naive Scheme:\n" 							\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -45,16 +45,51 @@ naive:
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 0 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS)  0 0
 
 cyccoded:
+	@echo \
+	"Cyclic Repetition Scheme:\n" 							\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 1 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS)  0 0
 
 repcoded:
+	@echo \
+	"Fractional Repetition Scheme:\n" 				\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 1 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS)  0 1
 
 avoidstragg:
+	@echo \
+	"Avoid Stragglers Scheme:\n" 				\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 1 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS)  0 2
 
 partialrepcoded:
+	@echo \
+	"Partial Repetition Scheme:\n" 				\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 1 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS) $(N_PARTITIONS) 1
 
 partialcyccoded:
+	@echo \
+	"Partial Cyclic Scheme:\n" 				\
+	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
+	"    Samples:       $(N_ROWS)\n" 				\
+	"    Stragglers:    $(N_STRAGGLERS)\n"			\
+	"    Straggle Time: $(STRAGGLER_DELAY)\n"
+
 	mpirun -np $(N_PROCS) python main.py $(N_PROCS) $(N_ROWS) $(N_COLS) $(DATA_FOLDER) $(IS_REAL) $(DATASET) 1 $(N_STRAGGLERS) $(STRAGGLER_DELAY) $(N_ITERATIONS) $(N_PARTITIONS) 0
