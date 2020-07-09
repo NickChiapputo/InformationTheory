@@ -20,15 +20,15 @@ PARTIAL_CODED ?= 0
 DATA_FOLDER ?= straggdata/
 
 # Rows and columns of dataset being used
-# N_ROWS ?= 554400
-# N_COLS ?= 100
+N_ROWS ?= 554400
+N_COLS ?= 100
 
 IS_REAL ?= 0
 
 # Real dataset values
 DATASET ?= amazon-dataset
-N_ROWS ?= 26210
-N_COLS ?= 241915
+# N_ROWS ?= 26210
+# N_COLS ?= 241915
 
 # Note that DATASET is automatically set to artificial-data/ (n_rows)x(n_cols)/... if IS_REAL is set to 0 \
 # or artificial-data/partial/ (n_rows)x(n_cols)/... if PARTIAL_CODED is also set to 1
