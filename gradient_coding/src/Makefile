@@ -5,7 +5,7 @@ N_PROCS ?= 13
 N_STRAGGLERS ?= 1
 
 # No. of iterations
-N_ITERATIONS ?= 1
+N_ITERATIONS ?= 100
 
 # Straggler Delay (seconds)
 STRAGGLER_DELAY ?= 0
@@ -41,7 +41,7 @@ arrange_real_data:
 
 naive:  
 	@echo \
-	"Naive Scheme:\n" 							\
+	"Naive Scheme:\n" 								\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -51,7 +51,7 @@ naive:
 
 cyccoded:
 	@echo \
-	"Cyclic Repetition Scheme:\n" 							\
+	"Cyclic Repetition Scheme:\n" 					\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
