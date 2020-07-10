@@ -8,7 +8,7 @@ import scipy.sparse as sps
 import time
 from mpi4py import MPI
 
-def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n_stragglers, is_real_data, params):
+def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n_stragglers, straggle_time, is_real_data, params):
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -137,6 +137,13 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         else:
 
             recv_reqs[i].Wait()
+
+
+            # Create a straggler by waiting a set amount of time before continuing
+            if( 1 <= rank <= n_stragglers ):
+                time.sleep( straggle_time )
+
+
 
             sendTestBuf = send_req.test()
             if not sendTestBuf[0]:
