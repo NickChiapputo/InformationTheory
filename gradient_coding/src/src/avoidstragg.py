@@ -46,6 +46,12 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         betaset = np.zeros((rounds, n_features))
         timeset = np.zeros(rounds)
         worker_timeset=np.zeros((rounds, n_procs-1))
+
+        region1_timeset = np.zeros( rounds )
+        region2_timeset = np.zeros( rounds )
+        region3_timeset = np.zeros( rounds )
+        region4_timeset = np.zeros( rounds )
+        region5_timeset = np.zeros( rounds )
         
         request_set = []
         recv_reqs = []
@@ -87,11 +93,20 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
     for i in range(rounds):
   
         if rank==0:
+            ### Region 1
+            regionTime = time.time()
 
             if(i%10 == 0):
                 print("\t >>> At Iteration %d" %(i))
 
             start_time = time.time()
+
+            region1_timeset[ i ] = start_time - regionTime
+            ###
+
+            ### Region 2
+            regionTime = time.time()
+
             g[:]=0.0
             cnt_completed = 0
             completed_workers[:]=False
@@ -101,7 +116,12 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             for l in range(1,n_procs):
                 sreq = comm.Isend([beta, MPI.DOUBLE], dest = l, tag = i)
                 send_set.append(sreq)
-            
+
+            region2_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 3
+            regionTime = time.time()
             
             while cnt_completed < n_procs-1-n_stragglers:
                 req_done = MPI.Request.Waitany(request_set[i], status)
@@ -112,6 +132,12 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
                 g += msgBuffers[src-1]   # add the partial gradients
                 cnt_completed += 1
                 completed_workers[src-1] = True
+
+            region3_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 4
+            regionTime = time.time()
 
             grad_multiplier = eta_sequence[i]/(n_samples*(n_procs-1-n_stragglers)/(n_procs-1))
             # ---- update step for gradient descent
@@ -130,9 +156,18 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             ind_set = [l for l in range(1,n_procs) if not completed_workers[l-1]]
             for l in ind_set:
                 worker_timeset[i,l-1]=-1
-            
-            #MPI.Request.Waitall(send_set)
-            #MPI.Request.Waitall(request_set[i])
+
+            region4_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 5
+            regionTime = time.time()
+
+            # MPI.Request.Cancel
+            MPI.Request.Waitall( request_set[ i ] )
+
+            region5_timeset[ i ] = time.time() - regionTime
+            ###
 
         else:
 
@@ -148,7 +183,7 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             sendTestBuf = send_req.test()
             if not sendTestBuf[0]:
                 send_req.Cancel()
-                #print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
+                print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
 
             predy = X_current.dot(beta)
             g = X_current.T.dot(np.divide(y_current,np.exp(np.multiply(predy,y_current))+1))
@@ -210,6 +245,13 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         save_vector(testing_loss, output_dir+"avoidstragg_acc_%d_testing_loss.dat"%(n_stragglers))
         save_vector(auc_loss, output_dir+"avoidstragg_acc_%d_auc.dat"%(n_stragglers))
         save_vector(timeset, output_dir+"avoidstragg_acc_%d_timeset.dat"%(n_stragglers))
+
+        save_vector( region1_timeset,   output_dir + "avoidstragg_region1_timeset.dat" )
+        save_vector( region2_timeset,   output_dir + "avoidstragg_region2_timeset.dat" )
+        save_vector( region3_timeset,   output_dir + "avoidstragg_region3_timeset.dat" )
+        save_vector( region4_timeset,   output_dir + "avoidstragg_region4_timeset.dat" )
+        save_vector( region5_timeset,   output_dir + "avoidstragg_region5_timeset.dat" )
+
         save_matrix(worker_timeset, output_dir+"avoidstragg_acc_%d_worker_timeset.dat"%(n_stragglers))
         print(">>> Done")
 

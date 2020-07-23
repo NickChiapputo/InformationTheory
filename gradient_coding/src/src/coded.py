@@ -109,15 +109,21 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		# A = np.zeros((int(sp.binom(n_workers,n_stragglers)),n_workers))
 		# A=getA(B,n_workers,n_stragglers)
 
-		msgBuffers = np.array([np.zeros(n_features) for i in range(n_procs-1)])
+		msgBuffers = np.array([np.zeros(n_features) for i in range(n_procs-1)])	# Initialize message buffers to send data to workers.
 	
-		g=np.zeros(n_features)
+		g=np.zeros(n_features)													# Initialize zero gradient.
 
 		A_row = np.zeros((1,n_procs-1))
 
-		betaset = np.zeros((rounds, n_features))
-		timeset = np.zeros(rounds)
-		worker_timeset=np.zeros((rounds, n_procs-1))
+		betaset = np.zeros((rounds, n_features))								# Initialize storage for intermediate beta values to show progression.
+		timeset = np.zeros(rounds)												# Initialize storage for iteration timings.
+		worker_timeset=np.zeros((rounds, n_procs-1))							# Initialize storage for timings for each worker in each iteration.
+
+		region1_timeset = np.zeros( rounds )
+		region2_timeset = np.zeros( rounds )
+		region3_timeset = np.zeros( rounds )
+		region4_timeset = np.zeros( rounds )
+		region5_timeset = np.zeros( rounds )
 		
 		request_set = []
 		recv_reqs = []
@@ -167,6 +173,8 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 	for i in range(rounds):
 	
 		if rank == 0:
+			### Region 1
+			regionTime = time.time()
 
 			if(i%10 == 0):
 				print("\t >>> At Iteration %d" %(i))
@@ -177,10 +185,22 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			cnt_completed = 0
 
 			start_time = time.time()
+
+			region1_timeset[ i ] = start_time - regionTime
+			###
 			
+			### Region 2
+			regionTime = time.time()
+
 			for l in range(1,n_procs):
 				sreq = comm.Isend([beta, MPI.DOUBLE], dest = l, tag = i)
-				send_set.append(sreq)            
+				send_set.append(sreq)      
+
+			region2_timeset[ i ] = time.time() - regionTime
+			###     
+
+			### Region 3
+			regionTime = time.time()
 			
 			# Stay here until ( n_workers - n_stragglers ) workers are done computing
 			while cnt_completed < n_procs-1-n_stragglers:
@@ -201,11 +221,16 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 				# Set the worker's completed flag to True
 				completed_workers[src-1] = True
-
 			
 			completed_ind_set = [l for l in range(n_procs-1) if completed_workers[l]]
 			A_row[0,completed_ind_set] = np.linalg.lstsq(B[completed_ind_set,:].T,np.ones(n_workers))[0]
 			g = np.squeeze(np.dot(A_row, msgBuffers))
+			
+			region3_timeset[ i ] = time.time() - regionTime
+			###
+
+			### Region 4
+			regionTime = time.time()
 			
 			# case_idx = calculate_indexA(completed_stragglers)
 			# g = np.dot(A[case_idx,ind_set],tmpBuff)
@@ -228,6 +253,18 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			for l in ind_set:
 				worker_timeset[i,l]=-1
 
+			region4_timeset[ i ] = time.time() - regionTime
+			###
+
+			### Region 5
+			regionTime = time.time()
+
+			# MPI.Request.Cancel
+			MPI.Request.Waitall( request_set[ i ] )
+
+			region5_timeset[ i ] = time.time() - regionTime
+			###
+
 		else:
 			# Wait for data to be received
 			recv_reqs[i].Wait()
@@ -240,7 +277,7 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			sendTestBuf = send_req.test()
 			if not sendTestBuf[0]:
 				send_req.Cancel()
-				#print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
+				# print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
 
 			# if rank == 1:
 			# 	print( "Rank {}: beta: {}".format( rank, beta ) )
@@ -298,7 +335,7 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			training_loss[i] = calculate_loss(y_train, predy_train, n_train)
 			testing_loss[i] = calculate_loss(y_test, predy_test, n_test)
 			fpr, tpr, thresholds = roc_curve(y_test,predy_test, pos_label=1)
-			print( "FPR: {}\n\nTPR: {}".format( fpr, tpr ) )
+			
 			auc_loss[i] = auc(fpr,tpr)
 			print("Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f"%(i, training_loss[i], testing_loss[i], auc_loss[i], timeset[i]))
 		
@@ -310,6 +347,13 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		save_vector(testing_loss, output_dir+"coded_acc_%d_testing_loss.dat"%(n_stragglers))
 		save_vector(auc_loss, output_dir+"coded_acc_%d_auc.dat"%(n_stragglers))
 		save_vector(timeset, output_dir+"coded_acc_%d_timeset.dat"%(n_stragglers))
+
+		save_vector( region1_timeset, 	output_dir + "coded_region1_timeset.dat" )
+		save_vector( region2_timeset, 	output_dir + "coded_region2_timeset.dat" )
+		save_vector( region3_timeset, 	output_dir + "coded_region3_timeset.dat" )
+		save_vector( region4_timeset, 	output_dir + "coded_region4_timeset.dat" )
+		save_vector( region5_timeset, 	output_dir + "coded_region5_timeset.dat" )
+
 		save_matrix(worker_timeset, output_dir+"coded_acc_%d_worker_timeset.dat"%(n_stragglers))
 		print(">>> Done")
 

@@ -76,6 +76,12 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         timeset = np.zeros(rounds)
         worker_timeset=np.zeros((rounds, n_procs-1))
 
+        region1_timeset = np.zeros( rounds )
+        region2_timeset = np.zeros( rounds )
+        region3_timeset = np.zeros( rounds )
+        region4_timeset = np.zeros( rounds )
+        region5_timeset = np.zeros( rounds )
+
         request_set = []
         recv_reqs = []
         send_set = []
@@ -113,8 +119,9 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
 
     for i in range(rounds):
         if rank==0:
+            ### Region 1
+            regionTime = time.time()
 
-            
             if(i%10 == 0):
                 print("\t >>> At Iteration %d" %(i))
 
@@ -125,10 +132,22 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             cnt_groups=0
             
             start_time = time.time()
-            
+
+            region1_timeset[ i ] = start_time - regionTime
+            ###
+
+            ### Region 2
+            regionTime = time.time()
+
             for l in range(1,n_procs):
                 sreq = comm.Isend([beta, MPI.DOUBLE], dest = l, tag = i)
                 send_set.append(sreq)
+
+            region2_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 3
+            regionTime = time.time()
 
             while cnt_groups<n_groups:
                 req_done = MPI.Request.Waitany(request_set[i], status)
@@ -143,6 +162,12 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
                     completed_groups[groupid]=True
                     g += msgBuffers[src-1]
                     cnt_groups += 1
+
+            region3_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 4
+            regionTime = time.time()
 
             grad_multiplier = eta0[i]/n_samples
             # ---- update step for gradient descent
@@ -162,8 +187,17 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             for l in ind_set:
                 worker_timeset[i,l-1]=-1
 
-            #MPI.Request.Waitall(send_set)
-            #MPI.Request.Waitall(request_set[i])
+            region4_timeset[ i ] = time.time() - regionTime
+            ###
+
+            ### Region 5
+            regionTime = time.time()
+
+            # MPI.Request.Cancel
+            MPI.Request.Waitall( request_set[ i ] )
+
+            region5_timeset[ i ] = time.time() - regionTime
+            ###
 
         else:
             
@@ -240,6 +274,13 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         save_vector(testing_loss, output_dir+"replication_acc_%d_testing_loss.dat"%(n_stragglers))
         save_vector(auc_loss, output_dir+"replication_acc_%d_auc.dat"%(n_stragglers))
         save_vector(timeset, output_dir+"replication_acc_%d_timeset.dat"%(n_stragglers))
+
+        save_vector( region1_timeset,   output_dir + "replication_region1_timeset.dat" )
+        save_vector( region2_timeset,   output_dir + "replication_region2_timeset.dat" )
+        save_vector( region3_timeset,   output_dir + "replication_region3_timeset.dat" )
+        save_vector( region4_timeset,   output_dir + "replication_region4_timeset.dat" )
+        save_vector( region5_timeset,   output_dir + "replication_region5_timeset.dat" )
+
         save_matrix(worker_timeset, output_dir+"replication_acc_%d_worker_timeset.dat"%(n_stragglers))
         print(">>> Done")
 
