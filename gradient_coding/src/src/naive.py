@@ -18,6 +18,8 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 	beta=np.zeros(n_features)									# Initialize beta. 1xCOLS matrix of zeros (COLS is number of columns in dataset).
 
+	isStraggler = 0												# Flag to determine if worker is a straggler. Set by the master and sent with beta at each iteration.
+
 	# Loading the data for the workers. Only do this 
 	# for workers (not for master whose rank = 0)
 	if (rank):
@@ -52,11 +54,17 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 	else:
 
-		msgBuffers = [np.zeros(n_features) for i in range(n_procs-1)]
-		g=np.zeros(n_features)
-		betaset = np.zeros((rounds, n_features))
-		timeset = np.zeros(rounds)
-		worker_timeset=np.zeros((rounds, n_procs-1))
+		msgBuffers = [ np.zeros( n_features ) for i in range( n_procs - 1 ) ]	# Initialize message buffers to send data to workers.
+		g = np.zeros( n_features )												# Initialize zero gradient.
+		betaset = np.zeros( ( rounds, n_features ) )							# Initialize storage for intermediate beta values to show progression.
+		timeset = np.zeros( rounds )											# Initialize storage for iteration timings.
+		worker_timeset = np.zeros( ( rounds, n_procs - 1 ) )					# Initialize storage for timings for each worker in each iteration.
+
+		region1_timeset = np.zeros( rounds )
+		region2_timeset = np.zeros( rounds )
+		region3_timeset = np.zeros( rounds )
+		region4_timeset = np.zeros( rounds )
+		region5_timeset = np.zeros( rounds )
 		
 		request_set = []
 		recv_reqs = []
@@ -65,15 +73,15 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		status = MPI.Status()
 
-		eta0=params[2] # ----- learning rate schedule
-		alpha = params[1] # --- coefficient of l2 regularization
-		utemp = np.zeros(n_features) # for accelerated gradient descent
+		eta0=params[ 2 ] 				# ----- learning rate schedule
+		alpha = params[ 1 ] 			# --- coefficient of l2 regularization
+		utemp = np.zeros( n_features ) 	# for accelerated gradient descent
    
 	# Posting all Irecv requests for master and workers
 	if (rank):
 
 		for i in range(rounds):
-			req = comm.Irecv([beta, MPI.DOUBLE], source=0, tag=i)
+			req = comm.Irecv([beta, MPI.DOUBLE, straggler], source=0, tag=i)
 			recv_reqs.append(req)
 
 	else:
@@ -94,26 +102,44 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 	for i in range(rounds):
 		if rank==0:
+			### Region 1
+			regionTime = time.time()
 
 			if( i % 10 == 0):
 				print("\t >>> At Iteration %d" %(i))
 
 			start_time = time.time()
 
-			### Region 1
-			for l in range(1,n_procs):
-				comm.Isend([beta,MPI.DOUBLE],dest=l,tag=i)
+			region1_timeset[ i ] = start_time - regionTime
 			###
 
 			### Region 2
+			regionTime = time.time()
+
+			# Randomly select worker to be straggler.
+
+			for l in range(1,n_procs):
+				comm.Isend([beta,MPI.DOUBLE],dest=l,tag=i)
+
+			region2_timeset[ i ] = time.time() - regionTime
+			###
+
+			### Region 3
+			regionTime = time.time()
 			g[:]=0
 			cnt_completed = 0
 
 			# Stay here until ( n_workers - n_stragglers ) workers are done computing
 			while cnt_completed < n_procs-1:
+				########
+
 				# Wait until any worker is done and has sent its data
 				req_done = MPI.Request.Waitany(request_set[i], status)
 
+				########
+
+
+				########
 				# Get the worker number
 				src = status.Get_source()
 
@@ -122,15 +148,26 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 				# Remove the message request from the list.
 				request_set[i].pop(req_done)
+
+				########
 				
+
+				########
+
 				# Add the partial gradients.
 				g+=msgBuffers[src-1]
 
 				# Increment the count of completed workers.
 				cnt_completed+=1
+
+				########
+
+			region3_timeset[ i ] = time.time() - regionTime
 			###
 
-			### Region 3
+			### Region 4
+			regionTime = time.time()
+			
 			grad_multiplier = eta0[i]/n_samples 							# 1
 			# ---- update step for gradient descent
 			# np.subtract((1-2*alpha*eta0[i])*beta , grad_multiplier*g, out=beta)
@@ -144,6 +181,17 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			
 			timeset[i] = time.time() - start_time
 			betaset[i,:] = beta
+
+			region4_timeset[ i ] = time.time() - regionTime
+			###
+
+			### Region 5
+			regionTime = time.time()
+
+			# MPI.Request.Cancel
+			MPI.Request.Waitall( request_set[ i ] )
+
+			region5_timeset[ i ] = time.time() - regionTime
 			###
 
 		else:
@@ -152,8 +200,11 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 
 			# Create a straggler by waiting a set amount of time before continuing
-			if( 1 <= rank <= n_stragglers ):
+			if( isStraggler ):
+				console.log( "Rank %i: straggling." )
 				time.sleep( straggle_time )
+			else:
+				console.log( "Rank %i: not straggling." )
 
 
 			# sendTestBuf = send_req.test()
@@ -233,11 +284,18 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 
 		# Save simulation data.
-		save_vector(training_loss, output_dir+"naive_acc_training_loss.dat")
-		save_vector(testing_loss, output_dir+"naive_acc_testing_loss.dat")
-		save_vector(auc_loss, output_dir+"naive_acc_auc.dat")
-		save_vector(timeset, output_dir+"naive_acc_timeset.dat")
-		save_matrix(worker_timeset, output_dir+"naive_acc_worker_timeset.dat")
+		save_vector( training_loss, 	output_dir + "naive_acc_training_loss.dat" )
+		save_vector( testing_loss, 		output_dir + "naive_acc_testing_loss.dat" )
+		save_vector( auc_loss, 			output_dir + "naive_acc_auc.dat" )
+		save_vector( timeset,			output_dir + "naive_acc_timeset.dat" )
+
+		save_vector( region1_timeset, 	output_dir + "naive_region1_timeset.dat" )
+		save_vector( region2_timeset, 	output_dir + "naive_region2_timeset.dat" )
+		save_vector( region3_timeset, 	output_dir + "naive_region3_timeset.dat" )
+		save_vector( region4_timeset, 	output_dir + "naive_region4_timeset.dat" )
+		save_vector( region5_timeset, 	output_dir + "naive_region5_timeset.dat" )
+
+		save_matrix( worker_timeset, 	output_dir + "naive_acc_worker_timeset.dat" )
 		print(">>> Done")
 
 	# Synchronized ending.
