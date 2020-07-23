@@ -42,6 +42,7 @@ arrange_real_data:
 naive:  
 	@echo \
 	"Naive Scheme:\n" 								\
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -52,6 +53,7 @@ naive:
 cyccoded:
 	@echo \
 	"Cyclic Repetition Scheme:\n" 					\
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -62,6 +64,7 @@ cyccoded:
 repcoded:
 	@echo \
 	"Fractional Repetition Scheme:\n" 				\
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -71,7 +74,8 @@ repcoded:
 
 avoidstragg:
 	@echo \
-	"Avoid Stragglers Scheme:\n" 				\
+	"Avoid Stragglers Scheme:\n" 				    \
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -81,7 +85,8 @@ avoidstragg:
 
 partialrepcoded:
 	@echo \
-	"Partial Repetition Scheme:\n" 				\
+	"Partial Repetition Scheme:\n" 				    \
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
@@ -91,7 +96,8 @@ partialrepcoded:
 
 partialcyccoded:
 	@echo \
-	"Partial Cyclic Scheme:\n" 				\
+	"Partial Cyclic Scheme:\n" 				        \
+	"    Iterations:    $$(( $(N_ITERATIONS) ))\n" 	\
 	"    Workers:       $$(( $(N_PROCS) - 1 ))\n" 	\
 	"    Samples:       $(N_ROWS)\n" 				\
 	"    Stragglers:    $(N_STRAGGLERS)\n"			\
