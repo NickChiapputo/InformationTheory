@@ -9,6 +9,7 @@ import time
 from mpi4py import MPI
 
 def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n_stragglers, straggle_time, is_real_data, params):
+    initTime = time.time()
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -23,6 +24,8 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
     rounds = params[0]
 
     beta=np.zeros(n_features)
+
+    isStraggler = np.zeros( 1 )                                 # Flag to determine if worker is a straggler. Set by the master and sent with beta at each iteration.
 
     rows_per_worker=n_samples/(n_procs-1)
     n_groups=n_workers/(n_stragglers+1)
@@ -67,7 +70,7 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         g = -X_current.T.dot(np.divide(y_current,np.exp(np.multiply(predy,y_current))+1))
         send_req = MPI.Request()
         recv_reqs = []
-
+        straggler_reqs = []
     else:
 
         msgBuffers = [np.zeros(n_features) for i in range(n_procs-1)]
@@ -98,18 +101,24 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
 
     # Posting all Irecv requests for master and workers
     if (rank):
-
         for i in range(rounds):
-            req = comm.Irecv([beta, MPI.DOUBLE], source=0, tag=i)
-            recv_reqs.append(req)
-    else:
+            # Irecv format:
+            #   Irecv( [ array, count, datatype ], sourceRank, tag )
 
+            req = comm.Irecv( [ beta, MPI.DOUBLE ], source = 0, tag = i )
+            recv_reqs.append( req )
+
+            stragglerReq = comm.Irecv( [ isStraggler, MPI.INT ], source = 0, tag = i )
+            straggler_reqs.append( stragglerReq )
+    else:
         for i in range(rounds):
             recv_reqs = []
             for j in range(1,n_procs):
                 req = comm.Irecv([msgBuffers[j-1], MPI.DOUBLE], source=j, tag=i)
                 recv_reqs.append(req)
             request_set.append(recv_reqs)
+
+    print( "Rank {} - Time to initialize: {}.".format( rank, time.time() - initTime ) )
 
     ###########################################################################################
     comm.Barrier()
@@ -125,7 +134,6 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             if(i%10 == 0):
                 print("\t >>> At Iteration %d" %(i))
 
-            send_set[:] = []
             g[:]=0
             completed_groups[:]=False
             completed_workers[:]=False
@@ -139,9 +147,17 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             ### Region 2
             regionTime = time.time()
 
+            # Randomly select worker to be straggler. Range [ 1, # of workers ]
+            straggleRank = random.SystemRandom().randint( 1, n_procs - 1 )
+            # print( "Selected rank {} to straggle.".format( straggleRank ) )
             for l in range(1,n_procs):
-                sreq = comm.Isend([beta, MPI.DOUBLE], dest = l, tag = i)
-                send_set.append(sreq)
+                isStraggler[ 0 ] = 0
+
+                if l == straggleRank:
+                    isStraggler[ 0 ] = 1
+
+                comm.Isend( [ beta, MPI.DOUBLE ], dest = l, tag = i )
+                comm.Isend( [ isStraggler, MPI.INT ], dest = l, tag = i )
 
             region2_timeset[ i ] = time.time() - regionTime
             ###
@@ -200,12 +216,14 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             ###
 
         else:
-            
-            recv_reqs[i].Wait()
+            # Wait for data to be received
+            recv_reqs[ i ].Wait()
+            straggler_reqs[ i ].Wait()
 
 
             # Create a straggler by waiting a set amount of time before continuing
-            if( 1 <= rank <= n_stragglers ):
+            if( isStraggler ):
+                # print( "Rank {}: straggling.".format( rank ) )
                 time.sleep( straggle_time )
 
 
@@ -226,6 +244,7 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         elapsed_time= time.time() - orig_start_time
         print ("Total Time Elapsed: %.3f" %(elapsed_time))
         # Load all training data
+        loadTime = time.time()
         if not is_real_data:
             X_train = load_data(input_dir+"1.dat")
             for j in range(2,n_procs-1):
@@ -247,6 +266,9 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
         else:
             X_test = load_sparse_csr(input_dir+"test_data")
 
+        loadTime = time.time() - loadTime
+        lossTime = time.time()
+
         n_train = X_train.shape[0]
         n_test = X_test.shape[0]
 
@@ -265,6 +287,9 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
             fpr, tpr, thresholds = roc_curve(y_test,predy_test, pos_label=1)
             auc_loss[i] = auc(fpr,tpr)
             print("Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f"%(i, training_loss[i], testing_loss[i], auc_loss[i], timeset[i]))
+        lossTime = time.time() - lossTime
+
+        saveTime = time.time()
         
         output_dir = input_dir + "results/"
         if not os.path.exists(output_dir):
@@ -283,5 +308,9 @@ def replication_logistic_regression(n_procs, n_samples, n_features, input_dir, n
 
         save_matrix(worker_timeset, output_dir+"replication_acc_%d_worker_timeset.dat"%(n_stragglers))
         print(">>> Done")
+
+        saveTime = time.time() - saveTime
+
+        print( "Time to load testing data: {}.\nTime to calculate loss: {}.\nTime to save data: {}.".format( loadTime, lossTime, saveTime ) )
 
     comm.Barrier()

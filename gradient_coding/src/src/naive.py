@@ -9,6 +9,8 @@ import time
 from mpi4py import MPI
 
 def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_stragglers, straggle_time, is_real_data, params):
+	initTime = time.time()
+
 	# Setup MPI data
 	comm = MPI.COMM_WORLD										# Create communicator to send/receive data through MPI.
 	rank = comm.Get_rank()										# Worker identifying number. Rank = 0 represents the master.
@@ -18,7 +20,8 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 	beta=np.zeros(n_features)									# Initialize beta. 1xCOLS matrix of zeros (COLS is number of columns in dataset).
 
-	isStraggler = 0												# Flag to determine if worker is a straggler. Set by the master and sent with beta at each iteration.
+	isStraggler = np.zeros( 1 )									# Flag to determine if worker is a straggler. Set by the master and sent with beta at each iteration.
+
 
 	# Loading the data for the workers. Only do this 
 	# for workers (not for master whose rank = 0)
@@ -48,6 +51,7 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			g = -X_current.T.dot(np.divide(y_current,np.exp(np.multiply(predy,y_current))+1))
 			send_req = MPI.Request()
 			recv_reqs = []
+			straggler_reqs = []
 		except:
 			print( "X_Current: {}\nBeta: {}\n".format( X_current.shape, beta.shape ) )
 			exit( 0 )
@@ -79,11 +83,15 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
    
 	# Posting all Irecv requests for master and workers
 	if (rank):
-
 		for i in range(rounds):
-			req = comm.Irecv([beta, MPI.DOUBLE, straggler], source=0, tag=i)
-			recv_reqs.append(req)
+			# Irecv format:
+			# 	Irecv( [ array, count, datatype ], sourceRank, tag )
 
+			req = comm.Irecv( [ beta, MPI.DOUBLE ], source = 0, tag = i )
+			recv_reqs.append( req )
+
+			stragglerReq = comm.Irecv( [ isStraggler, MPI.INT ], source = 0, tag = i )
+			straggler_reqs.append( stragglerReq )
 	else:
 
 		for i in range(rounds):
@@ -93,6 +101,8 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 				recv_reqs.append(req)
 			request_set.append(recv_reqs)
 
+	print( "Rank {} - Time to initialize: {}.".format( rank, time.time() - initTime ) )
+	# exit()
 	########################################################################################################
 	comm.Barrier()
 
@@ -116,10 +126,17 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			### Region 2
 			regionTime = time.time()
 
-			# Randomly select worker to be straggler.
-
+			# Randomly select worker to be straggler. Range [ 1, # of workers ]
+			straggleRank = random.SystemRandom().randint( 1, n_procs - 1 )
+			# print( "Selected rank {} to straggle.".format( straggleRank ) )
 			for l in range(1,n_procs):
-				comm.Isend([beta,MPI.DOUBLE],dest=l,tag=i)
+				isStraggler[ 0 ] = 0
+
+				if l == straggleRank:
+					isStraggler[ 0 ] = 1
+
+				comm.Isend( [ beta, MPI.DOUBLE ], dest = l, tag = i )
+				comm.Isend( [ isStraggler, MPI.INT ], dest = l, tag = i )
 
 			region2_timeset[ i ] = time.time() - regionTime
 			###
@@ -130,16 +147,24 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			cnt_completed = 0
 
 			# Stay here until ( n_workers - n_stragglers ) workers are done computing
+			# subRegionTime = 0
 			while cnt_completed < n_procs-1:
 				########
+				# region5_timeset[ i ] += 0 if subRegionTime == 0 else ( time.time() - subRegionTime )
+
+				########
+				# subRegionTime = time.time()
 
 				# Wait until any worker is done and has sent its data
 				req_done = MPI.Request.Waitany(request_set[i], status)
 
+				# region1_timeset[ i ] += time.time() - subRegionTime
 				########
 
 
 				########
+				# subRegionTime = time.time()
+
 				# Get the worker number
 				src = status.Get_source()
 
@@ -149,10 +174,12 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 				# Remove the message request from the list.
 				request_set[i].pop(req_done)
 
+				# region2_timeset[ i ] += time.time() - subRegionTime
 				########
 				
 
 				########
+				# subRegionTime = time.time()
 
 				# Add the partial gradients.
 				g+=msgBuffers[src-1]
@@ -160,8 +187,12 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 				# Increment the count of completed workers.
 				cnt_completed+=1
 
+				# region4_timeset[ i ] += time.time() - subRegionTime
 				########
 
+				########
+				# subRegionTime = time.time()
+			# region5_timeset[ i ] += time.time() - subRegionTime
 			region3_timeset[ i ] = time.time() - regionTime
 			###
 
@@ -196,15 +227,16 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		else:
 			# Wait for data to be received
-			recv_reqs[i].Wait()
+			recv_reqs[ i ].Wait()
+			straggler_reqs[ i ].Wait()
 
 
 			# Create a straggler by waiting a set amount of time before continuing
 			if( isStraggler ):
-				console.log( "Rank %i: straggling." )
+				# print( "Rank {}: straggling.".format( rank ) )
 				time.sleep( straggle_time )
-			else:
-				console.log( "Rank %i: not straggling." )
+			# else:
+			# 	print( "Rank {}: not straggling.".format( rank ) )
 
 
 			# sendTestBuf = send_req.test()
@@ -227,55 +259,61 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		print ("Total Time Elapsed: %.3f" %(elapsed_time))
 
 		# Load all training data
-		if not is_real_data:
-			X_train = load_data(input_dir+"1.dat")
-			print(">> Loaded 1")
-			for j in range(2,n_procs-1):
-				X_temp = load_data(input_dir+str(j)+".dat")
-				X_train = np.vstack((X_train, X_temp))
-				print(">> Loaded "+str(j))
-		else:
-			X_train = load_sparse_csr(input_dir+"1")
-			for j in range(2,n_procs-1):
-				X_temp = load_sparse_csr(input_dir+str(j))
-				X_train = sps.vstack((X_train, X_temp))
+		loadTime = time.time()
+		# if not is_real_data:
+		# 	X_train = load_data(input_dir+"1.dat")
+		# 	print(">> Loaded 1")
+		# 	for j in range(2,n_procs-1):
+		# 		X_temp = load_data(input_dir+str(j)+".dat")
+		# 		X_train = np.vstack((X_train, X_temp))
+		# 		print(">> Loaded "+str(j))
+		# else:
+		# 	X_train = load_sparse_csr(input_dir+"1")
+		# 	for j in range(2,n_procs-1):
+		# 		X_temp = load_sparse_csr(input_dir+str(j))
+		# 		X_train = sps.vstack((X_train, X_temp))
 
-		y_train = load_data(input_dir+"label.dat")
-		y_train = y_train[0:X_train.shape[0]]
+		# y_train = load_data(input_dir+"label.dat")
+		# y_train = y_train[0:X_train.shape[0]]
 
-		# Load all testing data
-		y_test = load_data(input_dir + "label_test.dat")
-		if not is_real_data:
-			X_test = load_data(input_dir+"test_data.dat")
-		else:
-			X_test = load_sparse_csr(input_dir+"test_data")
+		# # Load all testing data
+		# y_test = load_data(input_dir + "label_test.dat")
+		# if not is_real_data:
+		# 	X_test = load_data(input_dir+"test_data.dat")
+		# else:
+		# 	X_test = load_sparse_csr(input_dir+"test_data")
 
-		n_train = X_train.shape[0]
-		n_test = X_test.shape[0]
+		loadTime = time.time() - loadTime
+		lossTime = time.time()
 
-		training_loss = np.zeros(rounds)
-		testing_loss = np.zeros(rounds)
-		auc_loss = np.zeros(rounds)
+		# n_train = X_train.shape[0]
+		# n_test = X_test.shape[0]
 
-		from sklearn.metrics import roc_curve, auc
+		# training_loss = np.zeros(rounds)
+		# testing_loss = np.zeros(rounds)
+		# auc_loss = np.zeros(rounds)
 
-		for i in range(rounds):
-			beta = np.squeeze(betaset[i,:])
+		# from sklearn.metrics import roc_curve, auc
 
-			predy_train = X_train.dot(beta)
-			predy_test = X_test.dot(beta)
+		# for i in range(rounds):
+		# 	beta = np.squeeze(betaset[i,:])
 
-			training_loss[i] = calculate_loss(y_train, predy_train, n_train)	# Calculate loss on training data
-			testing_loss[i] = calculate_loss(y_test, predy_test, n_test)		# Calculate loss on testing data
+		# 	predy_train = X_train.dot(beta)
+		# 	predy_test = X_test.dot(beta)
 
-			# Generate the ROC curve. 
-			# FPR (False Positive Rate) is the x-axis, TPR (Total Positive Rate) is the y-axis
-			fpr, tpr, thresholds = roc_curve(y_test,predy_test, pos_label=1)	
+		# 	training_loss[i] = calculate_loss(y_train, predy_train, n_train)	# Calculate loss on training data
+		# 	testing_loss[i] = calculate_loss(y_test, predy_test, n_test)		# Calculate loss on testing data
 
-			auc_loss[i] = auc(fpr,tpr)
+		# 	# Generate the ROC curve. 
+		# 	# FPR (False Positive Rate) is the x-axis, TPR (Total Positive Rate) is the y-axis
+		# 	fpr, tpr, thresholds = roc_curve(y_test,predy_test, pos_label=1)	
 
-			print("Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f"%(i, training_loss[i], testing_loss[i], auc_loss[i], timeset[i]))
-		
+		# 	auc_loss[i] = auc(fpr,tpr)
+
+		# 	print("Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f"%(i, training_loss[i], testing_loss[i], auc_loss[i], timeset[i]))
+		# lossTime = time.time() - lossTime
+
+		saveTime = time.time()
 
 		# Get the output location. Create the directory if it does not exist.
 		output_dir = input_dir + "results/"
@@ -284,9 +322,9 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 
 		# Save simulation data.
-		save_vector( training_loss, 	output_dir + "naive_acc_training_loss.dat" )
-		save_vector( testing_loss, 		output_dir + "naive_acc_testing_loss.dat" )
-		save_vector( auc_loss, 			output_dir + "naive_acc_auc.dat" )
+		# save_vector( training_loss, 	output_dir + "naive_acc_training_loss.dat" )
+		# save_vector( testing_loss, 		output_dir + "naive_acc_testing_loss.dat" )
+		# save_vector( auc_loss, 			output_dir + "naive_acc_auc.dat" )
 		save_vector( timeset,			output_dir + "naive_acc_timeset.dat" )
 
 		save_vector( region1_timeset, 	output_dir + "naive_region1_timeset.dat" )
@@ -297,6 +335,10 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		save_matrix( worker_timeset, 	output_dir + "naive_acc_worker_timeset.dat" )
 		print(">>> Done")
+
+		saveTime = time.time() - saveTime
+
+		print( "Time to load testing data: {}.\nTime to calculate loss: {}.\nTime to save data: {}.".format( loadTime, lossTime, saveTime ) )
 
 	# Synchronized ending.
 	comm.Barrier()

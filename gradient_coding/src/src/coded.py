@@ -11,13 +11,16 @@ import scipy.sparse as sps
 
 #							 Processes Rows       Columns     Directory  Stragglers    Delay          Real Data     Parametesr
 def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_stragglers, straggle_time, is_real_data, params):
+	initTime = time.time()
+
 	# Setup MPI data
 	comm = MPI.COMM_WORLD							# Create communicator to send/receive data through MPI.
 	rank = comm.Get_rank()							# Worker identifying number. Rank = 0 represents the master.
 	size = comm.Get_size()							# Get total number of processes (equal to n_procs).
 	
-	# Set the number of iterations determined by the simulation parameters.
-	rounds = params[0]
+	rounds = params[0]								# Set the number of iterations determined by the simulation parameters.
+
+	isStraggler = np.zeros( 1 )						# Flag to determine if worker is a straggler. Set by the master and sent with beta at each iteration.
 
 	# Set up worker and row counts.
 	n_workers = n_procs - 1							# Number of workers is one less than number of processes.
@@ -101,6 +104,7 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		send_req = MPI.Request()
 		recv_reqs = []
+		straggler_reqs = []
 
 		# print( "Rank {}: Done calculating predy and initial gradient.".format( rank ) )
 
@@ -151,9 +155,14 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 	if( rank ):
 
 		for i in range(rounds):
-			# Request data 
-			req = comm.Irecv([beta, MPI.DOUBLE], source=0, tag=i)
-			recv_reqs.append(req)
+			# Irecv format:
+			# 	Irecv( [ array, count, datatype ], sourceRank, tag )
+
+			req = comm.Irecv( [ beta, MPI.DOUBLE ], source = 0, tag = i )
+			recv_reqs.append( req )
+
+			stragglerReq = comm.Irecv( [ isStraggler, MPI.INT ], source = 0, tag = i )
+			straggler_reqs.append( stragglerReq )
 
 		# print( "Rank {}: Done creating Irecv requests.".format( rank ) )
 	else:
@@ -163,8 +172,10 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			for j in range(1,n_procs):
 				req = comm.Irecv([msgBuffers[j-1], MPI.DOUBLE], source=j, tag=i)
 				recv_reqs.append(req)
-			request_set.append(recv_reqs)  
+			request_set.append(recv_reqs)
+		print( "Request_set size: {}x{}".format( len( request_set ), len( request_set[ 0 ] ) ) )
 
+	print( "Rank {} - Time to initialize: {}.".format( rank, time.time() - initTime ) )
 	#######################################################################################################
 	comm.Barrier()
 	if rank==0:
@@ -192,9 +203,17 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			### Region 2
 			regionTime = time.time()
 
+			# Randomly select worker to be straggler. Range [ 1, # of workers ]
+			straggleRank = random.SystemRandom().randint( 1, n_procs - 1 )
+			# print( "Selected rank {} to straggle.".format( straggleRank ) )
 			for l in range(1,n_procs):
-				sreq = comm.Isend([beta, MPI.DOUBLE], dest = l, tag = i)
-				send_set.append(sreq)      
+				isStraggler[ 0 ] = 0
+
+				if l == straggleRank:
+					isStraggler[ 0 ] = 1
+
+				comm.Isend( [ beta, MPI.DOUBLE ], dest = l, tag = i )
+				comm.Isend( [ isStraggler, MPI.INT ], dest = l, tag = i )
 
 			region2_timeset[ i ] = time.time() - regionTime
 			###     
@@ -252,6 +271,11 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			ind_set = [l for l in range(n_procs-1) if not completed_workers[l]]
 			for l in ind_set:
 				worker_timeset[i,l]=-1
+			# 	print( "Master: Cancelling {}".format( ( l + 1 ) ) )
+			# 	MPI.Request.Cancel( request_set[ i ][ l ] )
+
+			# print( "Completed Workers: {}".format( completed_workers ) )
+
 
 			region4_timeset[ i ] = time.time() - regionTime
 			###
@@ -267,17 +291,21 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		else:
 			# Wait for data to be received
-			recv_reqs[i].Wait()
+			recv_reqs[ i ].Wait()
+			straggler_reqs[ i ].Wait()
 
 
 			# Create a straggler by waiting a set amount of time before continuing
-			if( 1 <= rank <= n_stragglers ):
+			if( isStraggler ):
+				# print( "Rank {}: straggling.".format( rank ) )
 				time.sleep( straggle_time )
+			# else:
+			# 	print( "Rank {}: not straggling.".format( rank ) )
 
 			sendTestBuf = send_req.test()
 			if not sendTestBuf[0]:
 				send_req.Cancel()
-				# print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
+				print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
 
 			# if rank == 1:
 			# 	print( "Rank {}: beta: {}".format( rank, beta ) )
@@ -296,6 +324,7 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 
 		# Load all training data
+		loadTime = time.time()
 		if not is_real_data:
 			X_train = load_data(input_dir+"1.dat")
 			print(">> Loaded 1")
@@ -319,6 +348,9 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		else:
 			X_test = load_sparse_csr(input_dir+"test_data")
 
+		loadTime = time.time() - loadTime
+		lossTime = time.time()
+
 		n_train = X_train.shape[0]
 		n_test = X_test.shape[0]
 
@@ -335,9 +367,12 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			training_loss[i] = calculate_loss(y_train, predy_train, n_train)
 			testing_loss[i] = calculate_loss(y_test, predy_test, n_test)
 			fpr, tpr, thresholds = roc_curve(y_test,predy_test, pos_label=1)
-			
+
 			auc_loss[i] = auc(fpr,tpr)
 			print("Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f"%(i, training_loss[i], testing_loss[i], auc_loss[i], timeset[i]))
+		lossTime = time.time() - lossTime
+
+		saveTime = time.time()
 		
 		output_dir = input_dir + "results/"
 		if not os.path.exists(output_dir):
@@ -356,5 +391,9 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 		save_matrix(worker_timeset, output_dir+"coded_acc_%d_worker_timeset.dat"%(n_stragglers))
 		print(">>> Done")
+
+		saveTime = time.time() - saveTime
+
+		print( "Time to load testing data: {}.\nTime to calculate loss: {}.\nTime to save data: {}.".format( loadTime, lossTime, saveTime ) )
 
 	comm.Barrier()
