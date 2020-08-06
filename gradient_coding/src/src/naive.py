@@ -73,6 +73,10 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		region1_timeset = np.zeros( rounds )
 		region2_timeset = np.zeros( rounds )
 		region3_timeset = np.zeros( rounds )
+		region3a_timeset	= np.zeros( rounds )
+		region3b_timeset 	= np.zeros( rounds )
+		region3c_timeset 	= np.zeros( rounds )
+		region3d_timeset 	= np.zeros( rounds )
 		region4_timeset = np.zeros( rounds )
 		region5_timeset = np.zeros( rounds )
 		
@@ -155,23 +159,23 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 			cnt_completed = 0
 
 			# Stay here until ( n_workers - n_stragglers ) workers are done computing
-			# subRegionTime = 0
+			subRegionTime = 0
 			while cnt_completed < n_procs-1:
 				########
-				# region5_timeset[ i ] += 0 if subRegionTime == 0 else ( time.time() - subRegionTime )
+				region3d_timeset[ i ] += 0 if subRegionTime == 0 else ( time.time() - subRegionTime )
 
 				########
-				# subRegionTime = time.time()
+				subRegionTime = time.time()
 
 				# Wait until any worker is done and has sent its data
 				req_done = MPI.Request.Waitany(request_set[i], status)
 
-				# region1_timeset[ i ] += time.time() - subRegionTime
+				region3a_timeset[ i ] += time.time() - subRegionTime
 				########
 
 
 				########
-				# subRegionTime = time.time()
+				subRegionTime = time.time()
 
 				# Get the worker number
 				src = status.Get_source()
@@ -182,12 +186,12 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 				# Remove the message request from the list.
 				request_set[i].pop(req_done)
 
-				# region2_timeset[ i ] += time.time() - subRegionTime
+				region3b_timeset[ i ] += time.time() - subRegionTime
 				########
 				
 
 				########
-				# subRegionTime = time.time()
+				subRegionTime = time.time()
 
 				# Add the partial gradients.
 				g+=msgBuffers[src-1]
@@ -195,12 +199,12 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 				# Increment the count of completed workers.
 				cnt_completed+=1
 
-				# region4_timeset[ i ] += time.time() - subRegionTime
+				region3c_timeset[ i ] += time.time() - subRegionTime
 				########
 
 				########
-				# subRegionTime = time.time()
-			# region5_timeset[ i ] += time.time() - subRegionTime
+				subRegionTime = time.time()
+			region3d_timeset[ i ] += time.time() - subRegionTime
 			region3_timeset[ i ] = time.time() - regionTime
 			###
 
@@ -294,125 +298,135 @@ def naive_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		elapsed_time= time.time() - orig_start_time
 		print ("Total Time Elapsed: %.3f" %(elapsed_time))
 
-		totalLoadTime = time.time()
-		loadTime = 0.0
-		vstackTime = 0.0
+		# totalLoadTime = time.time()
+		# loadTime = 0.0
+		# vstackTime = 0.0
 
-		# Load all training data		
-		if not is_real_data:
-			loadTimeStart = time.time()
+		# # Load all training data		
+		# if not is_real_data:
+		# 	loadTimeStart = time.time()
 
-			X_train = load_data( input_dir + "1.dat" )
+		# 	X_train = load_data( input_dir + "1.dat" )
 
-			loadTime += time.time() - loadTimeStart
+		# 	loadTime += time.time() - loadTimeStart
 
-			print(">> Loaded 1")
-			for j in range( 2, n_procs - 1 ):
-				loadTimeStart = time.time()
+		# 	print(">> Loaded 1")
+		# 	for j in range( 2, n_procs - 1 ):
+		# 		loadTimeStart = time.time()
 
-				X_temp = load_data( input_dir + str( j ) + ".dat" )
+		# 		X_temp = load_data( input_dir + str( j ) + ".dat" )
 
-				loadTime += time.time() - loadTimeStart
-
-
-				vstackTimeStart = time.time()
-
-				X_train = np.vstack( ( X_train, X_temp ) )
-
-				vstackTime += time.time() - vstackTimeStart
-
-				print( ">> Loaded " + str( j ) )
-		else:
-			loadTimeStart = time.time()
-
-			X_train = load_sparse_csr( input_dir + "1" )
-
-			loadTime += time.time() - loadTimeStart
-
-			print( ">> Loaded 1" )
-			for j in range( 2, n_procs - 1 ):
-				loadTimeStart = time.time()
-
-				X_temp = load_sparse_csr( input_dir + str( j ) )
-
-				loadTime += time.time() - loadTimeStart
+		# 		loadTime += time.time() - loadTimeStart
 
 
-				vstackTimeStart = time.time()
+		# 		vstackTimeStart = time.time()
 
-				X_train = sps.vstack( ( X_train, X_temp ) )
+		# 		X_train = np.vstack( ( X_train, X_temp ) )
 
-				vstackTime += time.time() - vstackTimeStart
+		# 		vstackTime += time.time() - vstackTimeStart
 
-				print( ">> Loaded " + str( j ) )
+		# 		print( ">> Loaded " + str( j ) )
+		# else:
+		# 	loadTimeStart = time.time()
 
-		loadTimeStart = time.time()
+		# 	X_train = load_sparse_csr( input_dir + "1" )
 
-		y_train = load_data( input_dir + "label.dat" )
+		# 	loadTime += time.time() - loadTimeStart
 
-		loadTime += time.time() - loadTimeStart
+		# 	print( ">> Loaded 1" )
+		# 	for j in range( 2, n_procs - 1 ):
+		# 		loadTimeStart = time.time()
 
-		y_train = y_train[ 0 : X_train.shape[ 0 ] ]
+		# 		X_temp = load_sparse_csr( input_dir + str( j ) )
 
-		# Load all testing data
-		testingLoadTimeStart = time.time()
+		# 		loadTime += time.time() - loadTimeStart
+
+
+		# 		vstackTimeStart = time.time()
+
+		# 		X_train = sps.vstack( ( X_train, X_temp ) )
+
+		# 		vstackTime += time.time() - vstackTimeStart
+
+		# 		print( ">> Loaded " + str( j ) )
+
+		# loadTimeStart = time.time()
+
+		# y_train = load_data( input_dir + "label.dat" )
+
+		# loadTime += time.time() - loadTimeStart
+
+		# y_train = y_train[ 0 : X_train.shape[ 0 ] ]
+
+		# # Load all testing data
+		# testingLoadTimeStart = time.time()
 		
-		y_test = load_data( input_dir + "label_test.dat" )
-		if not is_real_data:
-			X_test = load_data( input_dir + "test_data.dat" )
-		else:
-			X_test = load_sparse_csr( input_dir + "test_data" )
+		# y_test = load_data( input_dir + "label_test.dat" )
+		# if not is_real_data:
+		# 	X_test = load_data( input_dir + "test_data.dat" )
+		# else:
+		# 	X_test = load_sparse_csr( input_dir + "test_data" )
 		
-		testingLoadTime = time.time() - testingLoadTimeStart
-		totalLoadTime = time.time() - totalLoadTime
-		lossTime = time.time()
+		# testingLoadTime = time.time() - testingLoadTimeStart
+		# totalLoadTime = time.time() - totalLoadTime
+		# lossTime = time.time()
 
-		n_train = X_train.shape[ 0 ]
-		n_test = X_test.shape[ 0 ]
+		# n_train = X_train.shape[ 0 ]
+		# n_test = X_test.shape[ 0 ]
 
-		training_loss = np.zeros( rounds )
-		testing_loss = np.zeros( rounds )
-		auc_loss = np.zeros( rounds )
+		# training_loss = np.zeros( rounds )
+		# testing_loss = np.zeros( rounds )
+		# auc_loss = np.zeros( rounds )
 
-		from sklearn.metrics import roc_curve, auc
+		# from sklearn.metrics import roc_curve, auc
 
-		for i in range( rounds ):
-			beta = np.squeeze( betaset[ i , : ] )
-			predy_train = X_train.dot( beta )
-			predy_test = X_test.dot( beta )
-			training_loss[ i ] = calculate_loss( y_train, predy_train, n_train )
-			testing_loss[ i ] = calculate_loss( y_test, predy_test, n_test )
-			fpr, tpr, thresholds = roc_curve( y_test,predy_test, pos_label = 1 )
+		# for i in range( rounds ):
+		# 	beta = np.squeeze( betaset[ i , : ] )
+		# 	predy_train = X_train.dot( beta )
+		# 	predy_test = X_test.dot( beta )
+		# 	training_loss[ i ] = calculate_loss( y_train, predy_train, n_train )
+		# 	testing_loss[ i ] = calculate_loss( y_test, predy_test, n_test )
+		# 	fpr, tpr, thresholds = roc_curve( y_test,predy_test, pos_label = 1 )
 
-			auc_loss[ i ] = auc( fpr,tpr )
-			print( "Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f" % ( i, training_loss[ i ], testing_loss[ i ], auc_loss[ i ], timeset[ i ] ) )
-		lossTime = time.time() - lossTime
+		# 	auc_loss[ i ] = auc( fpr,tpr )
+		# 	print( "Iteration %d: Train Loss = %5.3f, Test Loss = %5.3f, AUC = %5.3f, Total time taken =%5.3f" % ( i, training_loss[ i ], testing_loss[ i ], auc_loss[ i ], timeset[ i ] ) )
+		# lossTime = time.time() - lossTime
 
-		saveTime = time.time()
+		# saveTime = time.time()
 		
-		output_dir = input_dir + "results/"
-		if not os.path.exists( output_dir ):
-			os.makedirs( output_dir )
+		# output_dir = input_dir + "results/"
+		# if not os.path.exists( output_dir ):
+		# 	os.makedirs( output_dir )
 
 
-		# Save simulation data.
-		save_vector( training_loss, 	output_dir + "naive_acc_training_loss.dat" )
-		save_vector( testing_loss, 		output_dir + "naive_acc_testing_loss.dat" )
-		save_vector( auc_loss, 			output_dir + "naive_acc_auc.dat" )
-		save_vector( timeset, 			output_dir + "naive_acc_timeset.dat" )
+		# # Save simulation data.
+		# save_vector( training_loss, 	output_dir + "naive_acc_training_loss.dat" )
+		# save_vector( testing_loss, 		output_dir + "naive_acc_testing_loss.dat" )
+		# save_vector( auc_loss, 			output_dir + "naive_acc_auc.dat" )
+		# save_vector( timeset, 			output_dir + "naive_acc_timeset.dat" )
 
-		save_vector( region1_timeset, 	output_dir + "naive_region1_timeset.dat" )
-		save_vector( region2_timeset, 	output_dir + "naive_region2_timeset.dat" )
-		save_vector( region3_timeset, 	output_dir + "naive_region3_timeset.dat" )
-		save_vector( region4_timeset, 	output_dir + "naive_region4_timeset.dat" )
-		save_vector( region5_timeset, 	output_dir + "naive_region5_timeset.dat" )
+		# save_vector( region1_timeset, 	output_dir + "naive_region1_timeset.dat" )
+		# save_vector( region2_timeset, 	output_dir + "naive_region2_timeset.dat" )
+		# save_vector( region3_timeset, 	output_dir + "naive_region3_timeset.dat" )
+		# save_vector( region4_timeset, 	output_dir + "naive_region4_timeset.dat" )
+		# save_vector( region5_timeset, 	output_dir + "naive_region5_timeset.dat" )
 
-		save_matrix( worker_timeset, 	output_dir + "naive_acc_worker_timeset.dat" )
-		print(">>> Done")
+		# save_matrix( worker_timeset, 	output_dir + "naive_acc_worker_timeset.dat" )
+		# print(">>> Done")
 
-		saveTime = time.time() - saveTime
+		# saveTime = time.time() - saveTime
 
-		print( "Total Load Time = %5.3f\nTesting Data Load Time: %5.3f\nTraining Data Loading Time: %5.3f (%5.3f)\nVstack Time: %5.3f (%5.3f)\nLoss Time: %5.3f\nSave Data: %5.3f\n" % ( totalLoadTime, testingLoadTime, loadTime, loadTime / ( n_procs - 1 ), vstackTime, vstackTime / ( n_procs - 2 ), lossTime, saveTime ) )
+		# print( "Total Load Time = %5.3f\nTesting Data Load Time: %5.3f\nTraining Data Loading Time: %5.3f (%5.3f)\nVstack Time: %5.3f (%5.3f)\nLoss Time: %5.3f\nSave Data: %5.3f\n" % ( totalLoadTime, testingLoadTime, loadTime, loadTime / ( n_procs - 1 ), vstackTime, vstackTime / ( n_procs - 2 ), lossTime, saveTime ) )
+		print( "Region 1 Average:  %f" % ( np.average( region1_timeset 	) ) )
+		print( "Region 2 Average:  %f" % ( np.average( region2_timeset 	) ) )
+		print( "Region 3 Average:  %f" % ( np.average( region3_timeset 	) ) )
+		print( "Region 3a Average: %f" % ( np.average( region3a_timeset ) ) )
+		print( "Region 3b Average: %f" % ( np.average( region3b_timeset ) ) )
+		print( "Region 3c Average: %f" % ( np.average( region3c_timeset ) ) )
+		print( "Region 3d Average: %f" % ( np.average( region3d_timeset ) ) )
+		print( "Region 4 Average:  %f" % ( np.average( region4_timeset 	) ) )
+		print( "Region 5 Average:  %f" % ( np.average( region5_timeset 	) ) )
+		print( "Total Time:        %f" % ( np.average( timeset 			) ) )
 	else:
 		print( "Rank % 2d: Total Time: % 5.3f\n         Waiting Time:      % 5.3f\n         Sleeping Time:     % 5.3f\n         Computing Time:    % 5.3f\n         Sending Data Time: % 5.3f\n" % ( rank, np.sum( totalTimeset ), np.sum( waitingTimeset ), np.sum( sleepingTimeset ), np.sum( computingTimeset ), np.sum( sendingDataTimeset ) ) )
 
