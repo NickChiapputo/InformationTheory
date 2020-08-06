@@ -262,7 +262,7 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
 
 				vstackTimeStart = time.time()
 
-				X_train = np.vstack( ( X_train, X_temp ) )
+				X_train = sps.vstack( ( X_train, X_temp ) )
 
 				vstackTime += time.time() - vstackTimeStart
 
