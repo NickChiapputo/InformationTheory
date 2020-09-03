@@ -46,11 +46,48 @@ def generate_random_binvec(n):
     return np.array([np.random.randint(2)*2-1 for x in range(n)])
 
 def interactionTermsAmazon(data, degree, hash=hash):
+    # Create empty list to hold data.
     new_data = []
+
+    # Get the number of rows $m$ and number of columns $n$.
     m,n = data.shape
+
+    # Iterate through each degree-tuple of terms in the columns.
+    # Order matters for the tuples. That is, all tuples (i, j) where 0 <= i < j < n will exist.
+    # For example, given n = 3 columns and degree = 2, get all 2-tuples of [ 0, 1, 2 ]:
+    #       ( 0, 1 ), ( 0, 2 ), ( 1, 2 )
+    # After the for loop is complete, new_data will contain $n$ rows that each contain a list of hash values of size $m$.
+    print(  "================================================================\n" \
+            "                           " + "\033[1;31m" + "IterTools\n" + "\033[0;0m" \
+            "n = {}\ndegree = {}\nindices = ".format( n, degree ), end = '' )
+    count = 0
     for indicies in itertools.combinations(range(n), degree):
+
+        # Display the tuples.
+        print( "{}, ".format( indicies ), end = '' )
+        count = count + 1
+        if( count == 5 ):
+            print( "\n          ", end = '' )
+            count = 0
+
+        # Add the tuple to the list if it is not (5, 7) or (2, 3).
+        # (5, 7) = ROLE_TITLE    and ROLE_FAMILY
+        # (2, 3) = ROLE_ROLLUP_1 and ROLE_ROLLUP_2
         if not(5 in indicies and 7 in indicies) and not(2 in indicies and 3 in indicies):
+            # data[ :, indicies ]   -> Return the tuple of values at the indicies provided for each row of the data
+            # hash( tuple( v ) )    -> Create a tuple of the values from the data and hash it to a single value.
+            # Combined, this creates a list of length equal to the number of rows in data.
             new_data.append([hash(tuple(v)) for v in data[:, indicies]])
+
+    # Count the number of tuples selected.
+    print( "\nNumber of Data Points = {}".format( len( new_data ) ) )
+
+    print(  "Transposed Data = {}\n" \
+            "      Data Size = {}\n" \
+            "================================================================\n".format( ( np.array( new_data ).T ), ( np.array( new_data ).T ).shape ) )
+
+    # Return the transpose of the new data.
+    # Size of data is m x n (just like the original data).
     return np.array(new_data).T
 
 # ---- Other routines 
