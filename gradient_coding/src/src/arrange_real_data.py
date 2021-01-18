@@ -42,7 +42,7 @@ if real_dataset=="amazon-dataset":
 
 
 	# Take the 9 columns of every row that are not the binary labels.
-	trainX = trainData.ix[:,'RESOURCE':].values
+	trainX = trainData.loc[:,'RESOURCE':].values
 
 
 	# Take the binary action labels that determine if access was granted.
