@@ -60,18 +60,18 @@ if real_dataset=="amazon-dataset":
 	print("")
 	for col in range(len(trainX[0, :])):
 		colSet = set( trainX[ :, col ] )
-		print(  "================================================================\n" \
-				"                           " + "\033[1;31m" + "Column " + str( col ) + "\n" + "\033[0;0m" \
-				"Data: {}, \n" \
-				"      Size = {},\n" \
-				"      Unique Elements = {}\n".format( trainX[ :, col ], trainX[ :, col ].size, len( colSet ) ) )
+		print(  "================================================================\n" +
+				"                           " + "\033[1;31m" + "Column " + str( col ) + "\n" + "\033[0;0m" +
+				f"Data: {trainX[ :, col ]}, \n" +
+				f"      Size = {trainX[ :, col ].size},\n" +
+				f"      Unique Elements = {len( colSet )}\n" )
 
 
 		# Fits the label encoder. The attribute 'classes_' of the LabelEncoder object
 		# is a list of the unique values in the column (i.e., a set of the values).
 		relabeler.fit(trainX[:, col])
-		print(  "Label Encoder Number of Classes = {}\n" \
-				"      Max Label Value: {}\n".format( relabeler.classes_.size, max( relabeler.classes_ ) ) )
+		print(  f"Label Encoder Number of Classes = {relabeler.classes_.size}\n" +
+				f"      Max Label Value: {max( relabeler.classes_ )}\n" )
 		
 
 		# Update the column and rearrange/transform it.
@@ -109,8 +109,8 @@ if real_dataset=="amazon-dataset":
 			"                           " + "\033[1;31m" + "hstack\n" + "\033[0;0m" \
 			"trainX: {}\nd_all_s: {}".format( trainX.shape, d_all_s.shape ) )
 	trainX = np.hstack((trainX, d_all_s))
-	print(  "trainX: {}\n" \
-			"================================================================\n".format( trainX.shape ) )
+	print(  "trainX: {}\n{}\n" \
+			"================================================================\n".format( trainX.shape, trainX ) )
 
 
 	# For each column in the training data, get indicies for the unique values
@@ -144,6 +144,7 @@ if real_dataset=="amazon-dataset":
 	# 
 	print(  "================================================================\n" \
 			"                           " + "\033[1;31m" + "One Hot Encoding\n" + "\033[0;0m" \
+			f"Unique: {len(np.unique(X_train))}\n" \
 			"Training Data: {}\n{}\n\n" \
 			"Testing Data: {}\n{}\n".format( X_train.shape, X_train, X_valid.shape, X_valid ) )
 	encoder = preprocessing.OneHotEncoder(sparse=True)

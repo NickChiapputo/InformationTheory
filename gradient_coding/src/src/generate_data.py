@@ -11,7 +11,7 @@ def generate_data(partitions,out_dir):
     assert(n_rows % partitions== 0)
 
     # num workers, and number of rows per worker
-    n_rows_per_worker = n_rows / partitions
+    n_rows_per_worker = n_rows // partitions
 
     # Create output directory
     if not os.path.exists(out_dir):

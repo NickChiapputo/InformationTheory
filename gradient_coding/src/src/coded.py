@@ -24,7 +24,7 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 	# Set up worker and row counts.
 	n_workers = n_procs - 1							# Number of workers is one less than number of processes.
-	rows_per_worker = n_samples / ( n_procs - 1 )	# Evenly divide up rows for each worker.
+	rows_per_worker = n_samples // ( n_procs - 1 )	# Evenly divide up rows for each worker.
 
 	# Loading the data for the workers. Only do this for workers (not for master whose rank = 0)
 	if( rank ):
@@ -66,8 +66,10 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		else:
 			# Using real dataset.
 
-			y_current=np.zeros((1+n_stragglers)*rows_per_worker)
+			# Load weights (y-values; either -1 or 1).
 			y = load_data(input_dir+"label.dat")
+
+			y_current=np.zeros((1+n_stragglers)*rows_per_worker)
 			for i in range(1+n_stragglers):
 
 				if i==0:
@@ -328,18 +330,12 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 
 			# Create a straggler by waiting a set amount of time before continuing
 			if( isStraggler ):
-				# print( "Rank {}: straggling.".format( rank ) )
 				time.sleep( straggle_time )
-			# else:
-			# 	print( "Rank {}: not straggling.".format( rank ) )
 
 			sendTestBuf = send_req.test()
 			if not sendTestBuf[0]:
 				send_req.Cancel()
 				print("Worker " + str(rank) + " cancelled send request for Iteration " + str(i))
-
-			# if rank == 1:
-			# 	print( "Rank {}: beta: {}".format( rank, beta ) )
 
 			predy = X_current.dot(beta)
 			g = X_current.T.dot(np.divide(y_current_mod,np.exp(np.multiply(predy,y_current))+1))
@@ -351,7 +347,9 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 	if rank==0:
 		elapsed_time= time.time() - orig_start_time
 		print ("Total Time Elapsed: %.3f" %(elapsed_time))
-
+		print( f"Actual Running Time: {sum(timeset)}" )
+		print( f"Average Running Time: {sum(timeset) / len(timeset) = }" )
+		
 		totalLoadTime = time.time()
 		loadTime = 0.0
 		vstackTime = 0.0
@@ -470,19 +468,25 @@ def coded_logistic_regression(n_procs, n_samples, n_features, input_dir, n_strag
 		save_matrix( worker_timeset, 	output_dir + "coded_acc_%d_worker_timeset.dat"	% ( n_stragglers ) )
 		
 		print( ">>> Done" )
-
+		
 		saveTime = time.time() - saveTime
 
-		print( "Total Load Time = %5.3f\nTesting Data Load Time: %5.3f\nTraining Data Loading Time: %5.3f (%5.3f)\nVstack Time: %5.3f (%5.3f)\nLoss Time: %5.3f\nSave Data: %5.3f\n" % ( totalLoadTime, testingLoadTime, loadTime, loadTime / ( n_procs - 1 ), vstackTime, vstackTime / ( n_procs - 2 ), lossTime, saveTime ) )
-		print( "Region 1 Average:  %f" % ( np.average( region1_timeset 	) ) )
-		print( "Region 2 Average:  %f" % ( np.average( region2_timeset 	) ) )
-		print( "Region 3 Average:  %f" % ( np.average( region3_timeset 	) ) )
-		print( "Region 3a Average: %f" % ( np.average( region3a_timeset 	) ) )
-		print( "Region 3b Average: %f" % ( np.average( region3b_timeset 	) ) )
-		print( "Region 3c Average: %f" % ( np.average( region3c_timeset 	) ) )
-		print( "Region 3d Average: %f" % ( np.average( region3d_timeset 	) ) )
-		print( "Region 4 Average:  %f" % ( np.average( region4_timeset 	) ) )
-		print( "Region 5 Average:  %f" % ( np.average( region5_timeset 	) ) )
-		print( "Total Time:        %f" % ( np.average( timeset 			) ) )
 
+		print( 	f"Total Load TIme:    {totalLoadTime:9.6f}\n" +
+				f"Testing Load Time:  {testingLoadTime:9.6f}\n" +
+				f"Training Load Time: {loadTime:9.6f}\n" +
+				f"Vstack Time:        {vstackTime:9.6f}\n" +
+				f"Loss Time:          {lossTime:9.6f}\n" +
+				f"Save Time:          {saveTime:9.6f}\n\n" )
+		print( 	f"Region 1:   	      {np.sum( region1_timeset  ):9.6f} ({np.average( region1_timeset  ):9.6f})" )
+		print( 	f"Region 2:   	      {np.sum( region2_timeset  ):9.6f} ({np.average( region2_timeset  ):9.6f})" )
+		print( 	f"Region 3:   	      {np.sum( region3_timeset  ):9.6f} ({np.average( region3_timeset  ):9.6f})" )
+		print( 	f"Region 3a:  	      {np.sum( region3a_timeset ):9.6f} ({np.average( region3a_timeset ):9.6f})" )
+		print( 	f"Region 3b:  	      {np.sum( region3b_timeset ):9.6f} ({np.average( region3b_timeset ):9.6f})" )
+		print( 	f"Region 3c:  	      {np.sum( region3c_timeset ):9.6f} ({np.average( region3c_timeset ):9.6f})" )
+		print( 	f"Region 3d:  	      {np.sum( region3d_timeset ):9.6f} ({np.average( region3d_timeset ):9.6f})" )
+		print( 	f"Region 4:   	      {np.sum( region4_timeset  ):9.6f} ({np.average( region4_timeset  ):9.6f})" )
+		print( 	f"Region 5:   	      {np.sum( region5_timeset  ):9.6f} ({np.average( region5_timeset  ):9.6f})" )
+		print( 	f"Total Time: 	      {np.sum( timeset          ):9.6f} ({np.average( timeset          ):9.6f})" )
+		
 	comm.Barrier()

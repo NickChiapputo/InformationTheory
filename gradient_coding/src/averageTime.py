@@ -26,7 +26,7 @@ topLevelDirectory = "/home/nick/Documents/InformationTheory/gradient_coding/src/
 
 # Get the number of stragglers.
 stragglerNum = 1
-stragglers = "" if schemeNum == 0 else "_" + str( stragglerNum )
+stragglers = "_" + str( stragglerNum )
 
 
 # Get the desired data file. 

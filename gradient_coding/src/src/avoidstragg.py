@@ -215,7 +215,9 @@ def avoidstragg_logistic_regression(n_procs, n_samples, n_features, input_dir, n
 	if rank==0:
 		elapsed_time= time.time() - orig_start_time
 		print ("Total Time Elapsed: %.3f" %(elapsed_time))
-
+		print( f"Actual Running Time: {sum(timeset)}" )
+		print( f"Average Running Time: {sum(timeset) / len(timeset) = }" )
+		
 		totalLoadTime = time.time()
 		loadTime = 0.0
 		vstackTime = 0.0
